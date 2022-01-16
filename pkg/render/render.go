@@ -3,23 +3,35 @@ package render
 import (
 	"bytes"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"path/filepath"
-	"text/template"
 
 	"github.com/ankitkr1924/BankManagementApp/pkg/config"
 	"github.com/ankitkr1924/BankManagementApp/pkg/models"
 )
 
+var functions = template.FuncMap{}
+
+var app *config.AppConfig
+
+// NewTemplates sets the config for the template package
+func NewTemplates(a *config.AppConfig) {
+	app = a
+}
+
 func AddDefaultData(td *models.TemplateData) *models.TemplateData {
+
 	return td
 }
 
-func RenderTemplate(rw http.ResponseWriter, tmpl string, td *models.TemplateData) {
-	// tc, err := CreateTemplateCache()
+// RenderTemplate renders a template
+func RenderTemplate(w http.ResponseWriter, tmpl string, td *models.TemplateData) {
 	var tc map[string]*template.Template
+
 	if app.UseCache {
+		// get the template cache from the app config
 		tc = app.TemplateCache
 	} else {
 		tc, _ = CreateTemplateCache()
@@ -27,7 +39,7 @@ func RenderTemplate(rw http.ResponseWriter, tmpl string, td *models.TemplateData
 
 	t, ok := tc[tmpl]
 	if !ok {
-		log.Fatal("could not get template")
+		log.Fatal("Could not get template from template cache")
 	}
 
 	buf := new(bytes.Buffer)
@@ -36,22 +48,16 @@ func RenderTemplate(rw http.ResponseWriter, tmpl string, td *models.TemplateData
 
 	_ = t.Execute(buf, td)
 
-	_, err := buf.WriteTo(rw)
-
+	_, err := buf.WriteTo(w)
 	if err != nil {
-		fmt.Println("Error writing template")
+		fmt.Println("error writing template to browser", err)
 	}
+
 }
 
-var functions = template.FuncMap{}
-
-var app *config.AppConfig
-
-func NewTemplate(a *config.AppConfig) {
-	app = a
-}
-
+// CreateTemplateCache creates a template cache as a map
 func CreateTemplateCache() (map[string]*template.Template, error) {
+
 	myCache := map[string]*template.Template{}
 
 	pages, err := filepath.Glob("./templates/*.page.tmpl")
@@ -80,5 +86,6 @@ func CreateTemplateCache() (map[string]*template.Template, error) {
 
 		myCache[name] = ts
 	}
-	return myCache, err
+
+	return myCache, nil
 }
